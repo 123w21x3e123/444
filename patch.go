@@ -16,6 +16,14 @@ var baseCSS []byte
 //go:embed web/444.js
 var baseJS []byte
 
+// override lets you edit %APPDATA%\444\444.js or 444.css locally without rebuilding.
+func override(name string, def []byte) []byte {
+	if b, err := os.ReadFile(filepath.Join(dataDir(), name)); err == nil {
+		return b
+	}
+	return def
+}
+
 func appsDir() (string, error) {
 	d := filepath.Join(os.Getenv("APPDATA"), "Spotify", "Apps")
 	if _, err := os.Stat(filepath.Join(d, "xpui.spa")); err != nil {
@@ -126,12 +134,12 @@ func cmdApply() error {
 		}
 	}
 	css := []byte(fmt.Sprintf(":root{--c444-accent:%s}\n", loadConfig().Accent))
-	css = append(css, baseCSS...)
+	css = append(css, override("444.css", baseCSS)...)
 	if u, err := os.ReadFile(filepath.Join(dataDir(), "user.css")); err == nil {
 		css = append(css, u...)
 	}
 	tmp := spa + ".tmp"
-	if err := patchZip(bak, tmp, css, baseJS); err != nil {
+	if err := patchZip(bak, tmp, css, override("444.js", baseJS)); err != nil {
 		os.Remove(tmp)
 		return err
 	}

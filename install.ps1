@@ -9,4 +9,4 @@ if (($userPath -split ';') -notcontains $dir) {
   [Environment]::SetEnvironmentVariable('Path', "$userPath;$dir", 'User')
   $env:Path += ";$dir"
 }
-Write-Host 'Installed. Try:  444.exe scan C:\Music   then   444.exe play'
+Write-Host 'Installed. Close Spotify, then run:  444.exe apply'

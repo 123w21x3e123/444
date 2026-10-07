@@ -11,14 +11,11 @@ import (
 	"strconv"
 )
 
-const version = "0.1.0"
-const repo = "123w21x3e123/444" // <- your GitHub user/repo
+const version = "0.2.0"
+const repo = "123w21x3e123/444"
 
 type Config struct {
-	MusicDir string `json:"music_dir"`
-	Accent   string `json:"accent"`
-	Theme    string `json:"theme"`
-	Port     int    `json:"port"`
+	Accent string `json:"accent"`
 }
 
 func dataDir() string {
@@ -29,16 +26,11 @@ func dataDir() string {
 }
 
 func loadConfig() Config {
-	c := Config{Accent: "#1db954", Theme: "dark", Port: 4444}
+	c := Config{Accent: "#1db954"}
 	if b, err := os.ReadFile(filepath.Join(dataDir(), "config.json")); err == nil {
 		json.Unmarshal(b, &c)
 	}
 	return c
-}
-
-func saveConfig(c Config) error {
-	b, _ := json.MarshalIndent(c, "", "  ")
-	return os.WriteFile(filepath.Join(dataDir(), "config.json"), b, 0o644)
 }
 
 func main() {
@@ -48,10 +40,12 @@ func main() {
 	}
 	var err error
 	switch args[0] {
-	case "scan":
-		err = cmdScan(args[1:])
-	case "play":
-		err = cmdPlay()
+	case "apply":
+		err = cmdApply()
+	case "restore":
+		err = cmdRestore()
+	case "devtools":
+		err = cmdDevtools()
 	case "config":
 		err = cmdConfig(args[1:])
 	case "update":
@@ -61,7 +55,7 @@ func main() {
 	case "version":
 		fmt.Println(version)
 	default:
-		fmt.Println("444 - tiny local music player\n\n  444 scan <folder>\n  444 play\n  444 config [key value]   keys: music_dir accent theme port\n  444 update\n  444 uninstall\n  444 version")
+		fmt.Println("444 - lean Spotify patcher\n\n  444 apply        patch Spotify (close Spotify first)\n  444 restore      back to stock Spotify\n  444 devtools     enable Ctrl+Shift+I in Spotify\n  444 config accent #ff5500\n  444 update | uninstall | version\n\nExtra CSS: put it in %APPDATA%\\444\\user.css then run 444 apply")
 	}
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
@@ -71,27 +65,14 @@ func main() {
 
 func cmdConfig(a []string) error {
 	c := loadConfig()
-	if len(a) == 2 {
-		switch a[0] {
-		case "music_dir":
-			c.MusicDir = a[1]
-		case "accent":
-			c.Accent = a[1]
-		case "theme":
-			if a[1] != "dark" && a[1] != "light" {
-				return fmt.Errorf("theme must be dark or light")
-			}
-			c.Theme = a[1]
-		case "port":
-			n, err := strconv.Atoi(a[1])
-			if err != nil {
-				return err
-			}
-			c.Port = n
-		default:
-			return fmt.Errorf("unknown key %q", a[0])
+	if len(a) == 2 && a[0] == "accent" {
+		h := a[1]
+		if _, err := strconv.ParseUint(h[1:], 16, 32); h[0] != '#' || (len(h) != 4 && len(h) != 7) || err != nil {
+			return fmt.Errorf("accent must look like #1db954")
 		}
-		if err := saveConfig(c); err != nil {
+		c.Accent = h
+		b, _ := json.MarshalIndent(c, "", "  ")
+		if err := os.WriteFile(filepath.Join(dataDir(), "config.json"), b, 0o644); err != nil {
 			return err
 		}
 	}
@@ -138,10 +119,13 @@ func cmdUninstall() error {
 	if err != nil {
 		return err
 	}
+	if err := cmdRestore(); err != nil {
+		fmt.Println("note:", err)
+	}
 	dir := filepath.Dir(exe)
 	script := fmt.Sprintf(`$p=([Environment]::GetEnvironmentVariable('Path','User') -split ';') | Where-Object { $_ -and $_ -ne '%s' }; [Environment]::SetEnvironmentVariable('Path',($p -join ';'),'User'); Start-Sleep 2; Remove-Item -Recurse -Force '%s'`, dir, dir)
 	os.RemoveAll(dataDir())
 	exec.Command("powershell", "-NoProfile", "-Command", script).Start()
-	fmt.Println("444 removed (settings and library index too)")
+	fmt.Println("444 removed")
 	return nil
 }
